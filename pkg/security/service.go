@@ -14,7 +14,7 @@ var ErrUserNotFound = errors.New("user not found")
 
 const (
 	RoleAdmin = "ADMIN"
-	RoleUser = "USER"
+	RoleUser  = "USER"
 )
 
 type Service struct {
@@ -32,7 +32,7 @@ func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool}
 }
 
-// Возвращает профиль пользователя по id
+// UserDetails Возвращает профиль пользователя по id
 func (s *Service) UserDetails(ctx context.Context, id *string) (interface{}, error) {
 	details := &UserDetails{}
 	err := s.pool.QueryRow(ctx, `
@@ -42,14 +42,13 @@ func (s *Service) UserDetails(ctx context.Context, id *string) (interface{}, err
 		if err != pgx.ErrNoRows {
 			return nil, ErrUserNotFound
 		}
-		// в ДЗ научимся заворачивать ошибки
 		return nil, err
 	}
 
 	return details, nil
 }
 
-// Проверяет, есть ли у пользователя соответствующая роль
+// HasAnyRole Проверяет, есть ли у пользователя соответствующая роль
 func (s *Service) HasAnyRole(ctx context.Context, userDetails interface{}, roles ...string) bool {
 	details, ok := userDetails.(*UserDetails)
 	if !ok {

@@ -1,26 +1,17 @@
 package main
 
 import (
+	"ago_auth_payments/cmd/service/app"
 	"context"
 	"github.com/go-chi/chi"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"log"
 	"net/http"
-	"service/cmd/service/app"
 
-	//"context"
-	//"github.com/jackc/pgx/v4/pgxpool"
-	//"log"
-	//"net"
-	//"net/http"
-	//"os"
-	//"service/cmd/service/app"
-	//"service/pkg/business"
-	//"service/pkg/security"
+	"ago_auth_payments/pkg/business"
+	"ago_auth_payments/pkg/security"
 	"net"
 	"os"
-	"service/pkg/business"
-	"service/pkg/security"
 )
 
 const (

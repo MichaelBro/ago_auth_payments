@@ -1,17 +1,18 @@
 package app
 
 import (
+	"ago_auth_payments/cmd/service/app/dto"
+	"ago_auth_payments/cmd/service/app/middleware/authenticator"
+	"ago_auth_payments/cmd/service/app/middleware/authorizator"
+	"ago_auth_payments/cmd/service/app/middleware/identificator"
+	"ago_auth_payments/pkg/business"
+	"ago_auth_payments/pkg/security"
 	"context"
 	"encoding/json"
 	"github.com/go-chi/chi"
 	"log"
 	"net/http"
-	"service/cmd/service/app/dto"
-	"service/cmd/service/app/middleware/authenticator"
-	"service/cmd/service/app/middleware/authorizator"
-	"service/cmd/service/app/middleware/identificator"
-	"service/pkg/business"
-	"service/pkg/security"
+	"strconv"
 )
 
 type Server struct {
@@ -48,6 +49,10 @@ func (s *Server) Init() error {
 	s.router.Get("/public", s.handlePublic)
 	s.router.With(identificatorMd, authenticatorMd, adminRoleMd).Get("/admin", s.handleAdmin)
 	s.router.With(identificatorMd, authenticatorMd, userRoleMd).Get("/user", s.handleUser)
+
+	s.router.With(identificatorMd, authenticatorMd, userRoleMd).Post("/user/payments", s.handleCreatePayment)
+	s.router.With(identificatorMd, authenticatorMd, userRoleMd).Get("/user/payments", s.handleUserPayments)
+	s.router.With(identificatorMd, authenticatorMd, adminRoleMd).Get("/admin/payments", s.handleAllPayments)
 
 	return nil
 }
@@ -136,10 +141,110 @@ func (s *Server) handleAdmin(writer http.ResponseWriter, request *http.Request) 
 	}
 }
 
+// Только пользователям с ролью ADMIN
+func (s *Server) handleAllPayments(writer http.ResponseWriter, request *http.Request) {
+	payments, err := s.businessSvc.GetAllPayments(request.Context())
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data := make([]*dto.PaymentDTO, len(payments))
+	for i, p := range payments {
+		data[i] = dto.FromBusinessPaymentStructure(p)
+	}
+
+	writeJson(writer, data, http.StatusOK)
+}
+
 // Только пользователям с ролью USER
 func (s *Server) handleUser(writer http.ResponseWriter, request *http.Request) {
 	_, err := writer.Write([]byte("user"))
 	if err != nil {
 		log.Print(err)
+	}
+}
+
+// Только пользователям с ролью USER
+func (s *Server) handleCreatePayment(writer http.ResponseWriter, request *http.Request) {
+	amountString := request.PostFormValue("amount")
+	if amountString == "" {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	amount, err := strconv.ParseInt(amountString, 10, 64)
+	if err != nil {
+		writer.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	auth, err := authenticator.Authentication(request.Context())
+	if err != nil {
+		writer.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	userDetail, ok := auth.(*security.UserDetails)
+	if !ok {
+		writer.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	id, err := s.businessSvc.CreatePayment(request.Context(), userDetail.ID, amount)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data := &dto.PaymentDTO{
+		Id:       id,
+		SenderId: userDetail.ID,
+		Amount:   amount,
+	}
+
+	writeJson(writer, data, http.StatusCreated)
+}
+
+// Только пользователям с ролью USER
+func (s *Server) handleUserPayments(writer http.ResponseWriter, request *http.Request) {
+	auth, err := authenticator.Authentication(request.Context())
+	if err != nil {
+		writer.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	userDetail, ok := auth.(*security.UserDetails)
+	if !ok {
+		writer.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	payments, err := s.businessSvc.GetUserPayments(request.Context(), userDetail.ID)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	data := make([]*dto.PaymentDTO, len(payments))
+	for i, p := range payments {
+		data[i] = dto.FromBusinessPaymentStructure(p)
+	}
+
+	writeJson(writer, data, http.StatusOK)
+}
+
+func writeJson(writer http.ResponseWriter, data interface{}, code int) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(code)
+	_, err = writer.Write(body)
+	if err != nil {
+		log.Println(err)
 	}
 }

@@ -15,3 +15,9 @@ CREATE TABLE tokens (
     created  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE payments(
+     id TEXT PRIMARY KEY, -- записывайте UUID
+     senderId INTEGER NOT NULL REFERENCES users,
+     amount INTEGER NOT NULL
+);
+

@@ -1,0 +1,84 @@
+### Получение токена для юзера
+
+PUT http://localhost:9999/users
+Content-Type: application/x-www-form-urlencoded
+
+login=user&password=secret
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/json", "Expected 'application/json' but received '" + response.contentType.mimeType + "'");
+  client.global.set("userToken", response.body.token);
+});
+%}
+
+### Получение токена для админа
+
+PUT http://localhost:9999/users
+Content-Type: application/x-www-form-urlencoded
+
+login=admin&password=secret
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/json", "Expected 'application/json' but received '" + response.contentType.mimeType + "'");
+  client.global.set("adminToken", response.body.token);
+});
+%}
+
+### Создание транзакций неавторизованным пользователем
+
+POST http://localhost:9999/user/payments
+Content-Type: application/x-www-form-urlencoded
+
+amount=10000
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 401, "Response status is not 401");
+});
+%}
+
+### Создание транзакций авторизованным пользователем
+
+POST http://localhost:9999/user/payments
+Authorization: {{userToken}}
+Content-Type: application/x-www-form-urlencoded
+
+amount=10000
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 201, "Response status is not 201");
+});
+%}
+
+
+
+### Список всех транзакций
+
+GET http://localhost:9999/admin/payments
+Authorization: {{adminToken}}
+Content-Type: application/x-www-form-urlencoded
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(Array.isArray(response.body), "Response body is not array");
+});
+%}
+
+### Список транзакций пользователя
+
+GET http://localhost:9999/user/payments
+Authorization: {{userToken}}
+Content-Type: application/x-www-form-urlencoded
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(Array.isArray(response.body), "Response body is not array");
+});
+%}
