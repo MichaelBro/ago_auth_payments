@@ -16,7 +16,6 @@ client.test("Request executed successfully", function() {
 ### Получаем доступ к public
 
 GET http://localhost:9999/public
-Authorization: {{token}}
 
 > {%
 client.test("Request executed successfully", function() {
